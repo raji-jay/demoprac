@@ -2,35 +2,42 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "rajijay"
-        DOCKER_TAG = "latest"
+        IMAGE_NAME = 'demoprac'
+        IMAGE_TAG = 'latest'
+        DOCKER_HUB_USER = 'rajijay'
     }
 
     stages {
         stage('Clone') {
             steps {
-                  git branch: 'main', url: 'https://github.com/raji-jay/demoprac.git'
+                git 'https://github.com/raji-jay/demoprac.git'
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build') {
             steps {
-                bat """
-                docker build -t %DOCKER_IMAGE%:%DOCKER_TAG% .
-                """
+                bat 'mvn clean install'
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Docker Build & Push') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    bat """
-                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
-                    docker push %DOCKER_IMAGE%:%DOCKER_TAG%
-                    """
+                bat 'docker build -t %DOCKER_HUB_USER%/%IMAGE_NAME%:%IMAGE_TAG% .'
+
+                withCredentials([usernamePassword(credentialsId: 'busapp_credential', usernameVariable: 'DOCKER_HUB_USER', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    bat 'echo %DOCKER_PASSWORD% | docker login -u %DOCKER_HUB_USER% --password-stdin'
+                    bat 'docker push %DOCKER_HUB_USER%/%IMAGE_NAME%:%IMAGE_TAG%'
                 }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                bat 'kubectl apply -f k8s\\deployment.yaml'
+                bat 'kubectl apply -f k8s\\service.yaml'
             }
         }
     }
 }
+
 
