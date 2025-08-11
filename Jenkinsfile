@@ -1,29 +1,36 @@
 pipeline {
     agent any
+
+    environment {
+        DOCKER_IMAGE = "rajijay"
+        DOCKER_TAG = "latest"
+    }
+
     stages {
         stage('Clone') {
             steps {
-                git 'https://github.com/YOUR_USERNAME/YOUR_REPO.git'
+                  git branch: 'main', url: 'https://github.com/raji-jay/demoprac.git'
             }
         }
+
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t devops-practice-app .'
+                bat """
+                docker build -t %DOCKER_IMAGE%:%DOCKER_TAG% .
+                """
             }
         }
-        stage('Push Docker Image') {
+
+        stage('Push to Docker Hub') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                    sh 'docker tag devops-practice-app $DOCKER_USER/devops-practice-app:latest'
-                    sh 'docker push $DOCKER_USER/devops-practice-app:latest'
+                    bat """
+                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                    docker push %DOCKER_IMAGE%:%DOCKER_TAG%
+                    """
                 }
-            }
-        }
-        stage('Deploy to Kubernetes') {
-            steps {
-                sh 'kubectl apply -f k8s/'
             }
         }
     }
 }
+
